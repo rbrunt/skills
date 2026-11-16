@@ -1,6 +1,7 @@
 # Skills
 
-My agent skills, grouped under `skills/engineering/` and `skills/productivity/`.
+Skills I maintain and a couple I vendor, grouped under `skills/engineering/`
+and `skills/productivity/`.
 
 ## Install
 
@@ -17,6 +18,22 @@ update globally installed skills, use `npx skills@latest update -g`.
 Choose skills at the prompt rather than installing duplicates. In particular,
 `grilling` may already be linked from `~/.agents/skills` into Claude's skill
 directory, or supplied by Matt Pocock's Claude Code plugin.
+
+## Skills
+
+### Engineering
+
+- [call-graph-visualisation](skills/engineering/call-graph-visualisation/SKILL.md) — Trace a program or feature through a concise, source-checked ASCII call tree.
+- [gh-stack](skills/engineering/gh-stack/SKILL.md) — Create and manage dependent pull requests with `gh stack`.
+- [git-commit](skills/engineering/git-commit/SKILL.md) — Write commit messages in my preferred style, grounded in the discussion behind the change.
+- [python-script](skills/engineering/python-script/SKILL.md) — Apply my conventions to standalone Python scripts, including PEP 723 dependencies and `uv`.
+
+### Productivity
+
+- [briefing-paper](skills/productivity/briefing-paper/SKILL.md) — Write project plans and findings reports as single-file HTML in the Briefing Paper style.
+- [grilling](skills/productivity/grilling/SKILL.md) — Stress-test a plan or decision through rounds of questions. Vendored from Matt Pocock.
+- [unslop](skills/productivity/unslop/SKILL.md) — Cut AI tells from prose. Vendored from Lauren Tan's pstack; set to manual invocation upstream.
+- [user-story-map](skills/productivity/user-story-map/SKILL.md) — Build, update, or critique a user story map and its MVP or walking-skeleton scope.
 
 ## Third-party skills
 
