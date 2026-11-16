@@ -26,6 +26,7 @@ directory, or supplied by Matt Pocock's Claude Code plugin.
 - [code-flow-visualisation](skills/engineering/code-flow-visualisation/SKILL.md) — Explain code flow with a small call tree or sequence diagram when it helps more than prose.
 - [gh-stack](skills/engineering/gh-stack/SKILL.md) — Create and manage dependent pull requests with `gh stack`.
 - [git-commit](skills/engineering/git-commit/SKILL.md) — Write commit messages in my preferred style, grounded in the discussion behind the change.
+- [jira-status-nudge](skills/engineering/jira-status-nudge/SKILL.md) — Prompt me to keep Jira issue status aligned with work as it progresses.
 - [python-script](skills/engineering/python-script/SKILL.md) — Apply my conventions to standalone Python scripts, including PEP 723 dependencies and `uv`.
 
 ### Productivity
