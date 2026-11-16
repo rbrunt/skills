@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Document title</title>
+    <style>
+      /* Tokens: values are defined in DESIGN.md. */
+      :root {
+        --bg: #fbfaf7;
+        --surface: #fff;
+        --ink: #302a24;
+        --ink-2: #574e44;
+        --ink-3: #706459;
+        --line: #e4e1d9;
+        --line-2: #efece5;
+        --table-head: #f6f4ee;
+        --control-border: #c9c0b5;
+        --accent: #805237;
+        --accent-soft: #f3eade;
+        --accent-line: #dfcbb9;
+        --callout-ink: #513c2d;
+        --positive: #1e7a3c;
+        --positive-bg: #e4f2e8;
+        --positive-line: #bed4c7;
+        --mixed-ink: #5d5a1c;
+        --caution: #9a5b00;
+        --caution-bg: #fbefd6;
+        --caution-strong: #7a4d00;
+        --info: #2f4fa8;
+        --info-bg: #e9eefb;
+        --scale-0: #eeeae2;
+        --scale-1: #eee0ce;
+        --scale-2: #cfad89;
+        --scale-3: #a3714e;
+        --scale-4: #74472c;
+        --serif: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif;
+        --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --type-caption: 0.8125rem;
+        --type-small: 0.875rem;
+        --type-table: 0.9375rem;
+        --type-body: 1rem;
+        --type-subheading: 1.125rem;
+        --type-heading: 1.625rem;
+        --measure: 68ch;
+        --space-paragraph: 1rem;
+        --space-subsection: 2rem;
+        --space-section: 3rem;
+      }
+
+      /* Page */
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      html { overflow-x: clip; scroll-behavior: smooth; scroll-padding-top: 4.5rem; }
+      body {
+        font: var(--type-body)/1.65 var(--sans);
+        background: var(--bg);
+        color: var(--ink);
+        max-width: 56rem;
+        margin: 0 auto;
+        padding: 3.5rem 1.5rem 6rem;
+        -webkit-font-smoothing: antialiased;
+      }
+      ::selection { background: var(--accent-soft); color: var(--ink); }
+      :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+      /* Title block */
+      h1 {
+        font: 600 clamp(1.9rem, 4.2vw, 2.7rem)/1.12 var(--serif);
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+        margin: 0 0 0.9rem;
+      }
+      .meta {
+        display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center;
+        color: var(--ink-3); font-size: var(--type-small); margin: 0;
+      }
+      .meta .status {
+        font-weight: 600; font-size: var(--type-caption);
+        letter-spacing: 0.04em; text-transform: uppercase;
+        color: var(--caution-strong); background: var(--caution-bg);
+        padding: 0.15rem 0.55rem; border-radius: 999px;
+      }
+      .lead { font-size: 1.12rem; margin-top: 1.5rem; }
+
+      /* Contents: sticky top bar by default; side rail on wide screens (see the min-width: 76rem block) */
+      nav.toc {
+        position: sticky; top: 0; z-index: 30;
+        display: flex; flex-wrap: wrap; gap: 0.25rem 1.4rem;
+        margin: var(--space-subsection) 0 0; padding: 0.75rem 0;
+        border-block: 1px solid var(--line);
+        background: var(--bg); box-shadow: 0 -1rem 0 var(--bg);
+        font-size: var(--type-small); line-height: 1.5;
+      }
+      nav.toc a {
+        color: var(--ink-2); text-decoration: none;
+        padding: 0.1rem 0.15rem; border-bottom: 2px solid transparent;
+      }
+      nav.toc a:hover { color: var(--accent); }
+      nav.toc a.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+      /* Headings and prose */
+      h2 {
+        font: 600 var(--type-heading)/1.25 var(--serif);
+        letter-spacing: -0.01em; text-wrap: balance;
+        margin: var(--space-section) 0 var(--space-paragraph);
+        padding-top: 1.5rem; border-top: 1px solid var(--line);
+      }
+      h3 {
+        font: 600 var(--type-subheading)/1.4 var(--sans);
+        color: var(--ink-2); text-wrap: balance;
+        margin: var(--space-subsection) 0 0.75rem;
+      }
+      h2 + h3 { margin-top: 1.5rem; }
+      p, li { max-width: var(--measure); text-wrap: pretty; }
+      p { margin: 0 0 var(--space-paragraph); }
+      ol, ul { padding-left: 1.5rem; margin: 0 0 var(--space-paragraph); }
+      li { margin: 0.5rem 0; padding-left: 0.125rem; }
+      li::marker { color: var(--ink-3); }
+      ol > li::marker { font-weight: 600; }
+      b, strong { font-weight: 600; }
+      .note { color: var(--ink-2); max-width: var(--measure); }
+      code {
+        font: 0.86em var(--mono); background: var(--line-2); color: var(--ink-2);
+        padding: 0.08em 0.35em; border-radius: 4px; overflow-wrap: anywhere;
+      }
+      pre.code {
+        margin: var(--space-paragraph) 0 1.5rem; padding: 0.9rem 1rem; overflow-x: auto;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+        font: var(--type-caption)/1.6 var(--mono); color: var(--ink); tab-size: 4;
+        scrollbar-color: var(--accent-line) var(--bg);
+      }
+      pre.code code { font: inherit; background: none; color: inherit; padding: 0; overflow-wrap: normal; }
+      pre.code .cm { color: var(--ink-3); } /* optional: wrap comments in <span class="cm"> */
+      a { color: var(--accent); text-underline-offset: 0.2em; }
+      a[href^="#"]:not(nav a) {
+        color: inherit;
+        text-decoration: underline dotted var(--accent) 1.5px;
+        text-underline-offset: 0.22em;
+        transition: color 0.15s, text-decoration-color 0.15s;
+      }
+      a[href^="#"]:not(nav a):hover { color: var(--accent); text-decoration-style: solid; }
+      :target { animation: flash 1.8s cubic-bezier(0.22, 1, 0.36, 1); }
+      tr:target td { background: var(--accent-soft); }
+      @keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+
+      /* Callouts: recommendations and key findings only */
+      .callout {
+        background: var(--accent-soft); border: 1px solid var(--accent-line);
+        border-radius: 10px; padding: 1rem 1.25rem; margin: 1.5rem 0;
+        max-width: var(--measure); color: var(--callout-ink);
+      }
+      .callout b:first-child { color: var(--accent); }
+      .callout.good { background: var(--positive-bg); border-color: var(--positive-line); color: var(--ink); }
+      .callout.good b:first-child { color: var(--positive); }
+      .callout p:last-child { margin-bottom: 0; }
+
+      /* Pills */
+      .pill, .st {
+        display: inline-block; font: 600 var(--type-caption)/1.5 var(--sans);
+        padding: 0.125rem 0.625rem; border-radius: 999px; white-space: nowrap;
+      }
+      .pill { font-weight: 400; background: var(--line-2); color: var(--ink-2); }
+      .st.pending { background: var(--caution-bg); color: var(--caution-strong); }
+      .st.partial { background: var(--info-bg); color: var(--info); }
+      .st.answered { background: var(--positive-bg); color: var(--positive); }
+
+      /* Inline details: a pill inside a list item, no space until opened */
+      li > details { display: inline; margin: 0; color: var(--ink-2); }
+      li > details > summary {
+        display: inline-block; list-style: none; cursor: pointer;
+        font: 600 var(--type-caption)/1.5 var(--sans); color: var(--ink-3);
+        border: 1px solid var(--line); background: var(--surface);
+        padding: 0.125rem 0.5rem; min-height: 1.75rem; border-radius: 999px;
+        margin-left: 0.4rem; vertical-align: baseline;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      li > details > summary::-webkit-details-marker { display: none; }
+      li > details > summary::before { content: "+"; display: inline-block; width: 0.8em; font-family: var(--mono); }
+      li > details[open] > summary::before { content: "\2212"; }
+      li > details > summary:hover,
+      li > details[open] > summary { color: var(--accent); border-color: var(--accent); }
+      li > details > ul {
+        display: block; margin: 0.75rem 0 0.5rem; padding: 0.75rem 1rem 0.75rem 2rem;
+        background: var(--surface); border: 1px solid var(--line-2); border-radius: 8px;
+        font-size: var(--type-table); line-height: 1.6;
+      }
+
+      /* Tables keep their reading size; narrow screens scroll locally */
+      .table-scroll {
+        margin: var(--space-paragraph) 0 1.5rem; overflow-x: auto; border-radius: 10px;
+        scrollbar-color: var(--accent-line) var(--bg);
+      }
+      table {
+        border-collapse: separate; border-spacing: 0; width: 100%; min-width: 40rem; margin: 0;
+        font-size: var(--type-table); line-height: 1.5; font-variant-numeric: tabular-nums;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+      }
+      th, td { padding: 0.75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-2); }
+      tr:last-child > td { border-bottom: 0; }
+      th {
+        font-size: var(--type-caption); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+        color: var(--ink-3); background: var(--table-head); border-bottom: 1px solid var(--line);
+      }
+      td:first-child { white-space: nowrap; font-weight: 600; }
+      th.num, td.num { text-align: right; white-space: nowrap; }
+      td.pos { background: var(--positive-bg); color: var(--positive); font-weight: 600; }
+      td.cau { background: var(--caution-bg); color: var(--caution); font-weight: 600; }
+      td.mix { background: linear-gradient(90deg, var(--caution-bg) 50%, var(--positive-bg) 50%); color: var(--mixed-ink); font-weight: 600; }
+      .legend {
+        display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin: 0 0 0.75rem;
+        font-size: var(--type-small); line-height: 1.5; color: var(--ink-3);
+      }
+      .legend i {
+        display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 3px;
+        margin-right: 0.35rem; vertical-align: -0.05rem;
+      }
+
+      /* Figures. Charts sit in a white .chart-frame; tables and diagrams take a figcaption or .caption. */
+      figure { margin: 1.5rem 0; }
+      figcaption, .caption { margin-top: 0.8rem; font-size: var(--type-small); line-height: 1.6; color: var(--ink-3); max-width: var(--measure); }
+      figure > .table-scroll { margin-bottom: 0; }
+      figure.diagram + .caption { margin: -0.75rem 0 1.5rem; }
+      figure.chart-frame { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; }
+      .chart-frame .controls { margin-top: 0; }
+      .chart-title { margin: 0 0 0.6rem; font-size: var(--type-small); font-weight: 600; color: var(--ink-2); }
+      .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+      .charts.three { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+      .charts > * { min-width: 0; }
+
+      /* Bar and stacked-bar rows (HTML) */
+      .bar-row {
+        display: grid; grid-template-columns: 6rem 1fr 3.75rem; align-items: center; gap: 0.5rem;
+        font-size: var(--type-caption); line-height: 1.4; margin: 0.55rem 0;
+      }
+      .bar-track { display: flex; height: 0.8rem; background: var(--line-2); }
+      .bar { height: 100%; background: var(--k, var(--accent)); }
+      .bar-value { text-align: right; font-variant-numeric: tabular-nums; }
+
+      /* Series colours: accent first, then the brown scale. Set --k on any mark. */
+      .k1 { --k: var(--accent); }
+      .k2 { --k: var(--scale-2); }
+      .k3 { --k: var(--scale-4); }
+      .k4 { --k: var(--scale-1); }
+
+      /* Hand-built SVG charts: neutral axes, brown data, ink for context lines */
+      .chart-scroll { overflow-x: auto; scrollbar-color: var(--accent-line) var(--bg); }
+      .chart-scroll > svg { min-width: 600px; }
+      svg.chart { display: block; width: 100%; height: auto; overflow: visible; font-size: 12px; }
+      svg.chart text { fill: var(--ink-3); font-family: var(--sans); font-variant-numeric: tabular-nums; }
+      svg.chart text.strong { fill: var(--ink-2); font-weight: 600; }
+      svg.chart .ax { stroke: var(--line); }
+      svg.chart .gl { stroke: var(--line-2); }
+      svg.chart .ref { stroke: var(--control-border); stroke-dasharray: 3 3; }
+      svg.chart .line { fill: none; stroke: var(--k, var(--accent)); stroke-width: 2; }
+      svg.chart .line.ctx { stroke: var(--ink-2); stroke-width: 1.5; }
+      svg.chart .area { fill: var(--k, var(--scale-1)); }
+      svg.chart .dot { fill: var(--k, var(--accent)); }
+      svg.chart .dot.open { fill: var(--surface); stroke: var(--k, var(--accent)); stroke-width: 1.5; }
+      svg.chart .h0 { fill: var(--scale-0); }
+      svg.chart .h1 { fill: var(--scale-1); }
+      svg.chart .h2 { fill: var(--scale-2); }
+      svg.chart .h3 { fill: var(--scale-3); }
+      svg.chart .h4 { fill: var(--scale-4); }
+      .legend i.line { height: 2px; width: 1rem; vertical-align: 0.2rem; border-radius: 0; }
+      .legend i.dot { border-radius: 999px; }
+
+      /* Controls (interactive reports only) */
+      .controls { display: flex; flex-wrap: wrap; gap: 0.8rem 1rem; align-items: end; margin: 1.25rem 0; }
+      label { font-size: var(--type-small); font-weight: 600; display: flex; flex-direction: column; gap: 0.35rem; }
+      .controls label.search { flex: 1; min-width: 200px; }
+      button, select, input {
+        font: inherit; font-weight: 400; color: var(--ink); background: var(--surface);
+        border: 1px solid var(--control-border); border-radius: 5px; min-height: 2.75rem; padding: 0.45rem 0.7rem;
+      }
+      button { cursor: pointer; }
+      button:hover, select:hover, input:hover { border-color: var(--accent); }
+      button:hover { background: var(--accent-soft); }
+      input[type="number"] { width: 6rem; }
+      input[type="range"] { min-width: 11rem; padding: 0; border: 0; background: none; accent-color: var(--accent); cursor: pointer; }
+      label output { font-weight: 400; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+      /* Headline figures that respond to controls */
+      .stats { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; margin: 0 0 1rem; }
+      .stat { margin: 0; font-size: var(--type-small); color: var(--ink-3); }
+      .stat b { display: block; font: 600 1.75rem/1.2 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
+
+      /* Mermaid diagrams: a white frame in the column, like charts, with a full-screen button */
+      figure.diagram {
+        position: relative; margin: 1.5rem 0; padding: 0 1.25rem 1rem;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+      }
+      .mermaid { margin: 0; padding: 3.25rem 0 0.8rem; text-align: center; font-size: 0; }
+      .mermaid[data-processed] { font-size: 1rem; }
+      figure.diagram svg {
+        width: 100% !important; max-width: 1300px !important; max-height: 68vh;
+        height: auto; display: block; margin: 0 auto;
+      }
+      .fs-btn {
+        position: absolute; top: 0.6rem; right: 0.75rem; min-height: 2.25rem;
+        font: 600 var(--type-small)/1.5 var(--sans); color: var(--accent);
+        border: 1px solid var(--line); border-radius: 999px; padding: 0.375rem 0.75rem;
+      }
+      .fs-btn:hover { border-color: var(--line); }
+      figure.diagram:fullscreen {
+        width: 100vw; height: 100vh; margin: 0; padding: 3rem 2rem 1rem; overflow: auto; border: 0; border-radius: 0;
+        display: flex; flex-direction: column; justify-content: center;
+      }
+      figure.diagram:fullscreen svg { max-width: none !important; max-height: 88vh; }
+
+      footer {
+        margin-top: var(--space-section); padding-top: 1rem; border-top: 1px solid var(--line);
+        color: var(--ink-3); font-size: var(--type-small);
+      }
+
+      /* Wide screens: layout pins to the left; contents become a fixed side rail. */
+      @media (min-width: 76rem) {
+        html { scroll-padding-top: 2rem; }
+        body { max-width: 76rem; margin: 0; padding-left: 18.5rem; }
+        nav.toc {
+          position: fixed; top: 3.5rem; left: 2.5rem; z-index: 30;
+          width: 13rem; max-height: calc(100vh - 4rem); overflow-y: auto;
+          flex-direction: column; flex-wrap: nowrap; gap: 0;
+          margin: 0; padding: 0; border: 0; background: none; box-shadow: none;
+          scrollbar-width: thin; scrollbar-color: var(--accent-line) var(--bg);
+        }
+        nav.toc::before {
+          content: "Contents"; margin: 0 0 0.5rem;
+          font-size: var(--type-caption); font-weight: 600; letter-spacing: 0.04em;
+          text-transform: uppercase; color: var(--ink-3);
+        }
+        nav.toc a {
+          padding: 0.3rem 0 0.3rem 0.85rem; line-height: 1.4;
+          border-bottom: 0; border-left: 2px solid var(--line);
+        }
+        nav.toc a.active { border-left-color: var(--accent); }
+      }
+      @media (max-width: 640px) {
+        body { padding: 2rem 1rem 4rem; }
+        h2 { margin-top: 2.5rem; }
+        html { scroll-padding-top: 7rem; }
+        li > details > summary { min-height: 2.25rem; padding-block: 0.375rem; }
+        .charts, .charts.three { grid-template-columns: 1fr; gap: 1.5rem; }
+        .controls label { width: 100%; }
+        input[type="number"] { width: 100%; }
+        figure.chart-frame { padding: 0.75rem; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        :target { animation: none; }
+      }
+      @media print {
+        body { background: #fff; max-width: none; padding: 0; }
+        nav.toc, .controls, .fs-btn { display: none; }
+        .table-scroll, .chart-scroll, pre.code { overflow: visible; }
+        .chart-scroll > svg { min-width: 0; }
+        pre.code { white-space: pre-wrap; }
+        table { min-width: 0; }
+        h2, h3 { break-after: avoid; }
+        tr, figure, .callout, pre.code { break-inside: avoid; }
+        li > details > summary { display: none; }
+        li > details { display: contents; }
+      }
+    </style>
+    <!-- Delete this script block if the document has no diagrams. -->
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: "base",
+        flowchart: { useMaxWidth: true },
+        sequence: {
+          useMaxWidth: true, messageMargin: 22, diagramMarginY: 6, boxMargin: 4,
+          noteMargin: 6, height: 38, actorMargin: 40, mirrorActors: false,
+        },
+        themeVariables: {
+          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          fontSize: "14px",
+          primaryColor: "#e9eefb",
+          primaryBorderColor: "#2f4fa8",
+          primaryTextColor: "#1d2330",
+          lineColor: "#4a5262",
+          actorBkg: "#e9eefb",
+          actorBorder: "#2f4fa8",
+          actorTextColor: "#1d2330",
+          signalColor: "#4a5262",
+          noteBkgColor: "#fbefd6",
+          noteBorderColor: "#c9a15a",
+          noteTextColor: "#5d3c00",
+          loopTextColor: "#4a5262",
+        },
+      });
+      const blocks = [...document.querySelectorAll("pre.mermaid")];
+      for (const pre of blocks) {
+        const fig = document.createElement("figure");
+        fig.className = "diagram";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "fs-btn";
+        btn.textContent = "Full screen";
+        btn.addEventListener("click", () => {
+          if (document.fullscreenElement === fig) document.exitFullscreen();
+          else fig.requestFullscreen?.();
+        });
+        pre.replaceWith(fig);
+        fig.append(btn, pre);
+      }
+      document.addEventListener("fullscreenchange", () => {
+        for (const b of document.querySelectorAll(".fs-btn"))
+          b.textContent = b.parentElement === document.fullscreenElement ? "Exit full screen" : "Full screen";
+      });
+      await mermaid.run({ nodes: blocks });
+      // Allow small diagrams to grow at most 1.5x, so their text stays readable instead of becoming huge.
+      for (const svg of document.querySelectorAll("figure.diagram svg")) {
+        const w = svg.viewBox.baseVal?.width;
+        if (w) svg.style.setProperty("max-width", `${Math.min(1300, w * 1.5)}px`, "important");
+      }
+    </script>
+    <noscript>
+      <style>
+        .mermaid { font: var(--type-caption)/1.6 var(--mono); text-align: left; white-space: pre; overflow-x: auto; color: var(--ink-2); }
+      </style>
+    </noscript>
+    <!-- Contents: highlights the section in view and positions the side rail. Keep. -->
+    <script>
+      addEventListener("DOMContentLoaded", () => {
+        const nav = document.querySelector("nav.toc");
+        const rail = matchMedia("(min-width: 76rem)");
+        const links = [...document.querySelectorAll("nav.toc a")];
+        const heads = links.map((a) => document.querySelector(a.getAttribute("href")));
+        const setActive = () => {
+          let cur = 0;
+          heads.forEach((h, i) => { if (h && h.getBoundingClientRect().top <= 120) cur = i; });
+          if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = heads.length - 1;
+          links.forEach((a, i) => a.classList.toggle("active", i === cur));
+          // Side rail: start level with the first section heading, then stick 2rem from the top.
+          if (rail.matches && heads[0]) {
+            const top = Math.max(32, heads[0].getBoundingClientRect().top + parseFloat(getComputedStyle(heads[0]).paddingTop));
+            nav.style.top = `${top}px`;
+          } else nav.style.top = "";
+        };
+        addEventListener("scroll", setActive, { passive: true });
+        addEventListener("resize", setActive);
+        setActive();
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Document title in sentence case</h1>
+    <p class="meta">
+      <span>Author Name</span><span>23 October 2026</span><span class="status">Draft</span>
+    </p>
+    <p class="lead">One-paragraph summary: the answer, or what this plan proposes.</p>
+
+    <nav class="toc" aria-label="Contents">
+      <a href="#s1">Intro</a><a href="#s2">Findings</a><a href="#s3">Open questions</a>
+    </nav>
+
+    <h2 id="s1">1. Intro</h2>
+    <p>Prose, capped at 68ch. Inline <code>identifiers</code> in mono. Cross-reference with <a href="#s3">an anchor</a>.</p>
+    <div class="callout"><b>Recommendation:</b> one recommendation or key finding per callout.</div>
+
+    <h2 id="s2">2. Findings</h2>
+    <h3>Sub-section</h3>
+    <ol>
+      <li>
+        A step or finding.
+        <details>
+          <summary>Details</summary>
+          <ul>
+            <li>Optional supporting detail, hidden until opened.</li>
+          </ul>
+        </details>
+      </li>
+    </ol>
+
+    <div class="legend">
+      <span><i style="background: var(--positive-bg)"></i>Category A</span><span><i style="background: var(--caution-bg)"></i>Category B</span>
+    </div>
+    <figure>
+      <div class="table-scroll" role="region" aria-label="Example table" tabindex="0">
+        <table>
+          <tr><th>Item</th><th>Category</th><th class="num">Count</th></tr>
+          <tr><td>First</td><td class="pos">Category A</td><td class="num">1,204</td></tr>
+          <tr><td>Second</td><td class="cau">Category B</td><td class="num">87</td></tr>
+        </table>
+      </div>
+      <figcaption>Table 1. A table that needs a caption sits in a figure.</figcaption>
+    </figure>
+
+    <!-- Charts: a white .chart-frame; .charts for a pair, .charts.three for a row of three. -->
+    <figure class="chart-frame">
+      <div class="charts">
+        <div>
+          <p class="chart-title">Bar chart</p>
+          <div class="bar-row"><span>Label</span><div class="bar-track"><div class="bar" style="width: 80%"></div></div><span class="bar-value">80</span></div>
+          <div class="bar-row"><span>Label</span><div class="bar-track"><div class="bar" style="width: 35%"></div></div><span class="bar-value">35</span></div>
+        </div>
+        <div>
+          <p class="chart-title">Stacked bars</p>
+          <div class="legend"><span><i class="k1" style="background: var(--k)"></i>Part A</span><span><i class="k2" style="background: var(--k)"></i>Part B</span></div>
+          <div class="bar-row"><span>Label</span><div class="bar-track"><div class="bar k1" style="width: 50%"></div><div class="bar k2" style="width: 20%"></div></div><span class="bar-value">70</span></div>
+          <div class="bar-row"><span>Label</span><div class="bar-track"><div class="bar k1" style="width: 25%"></div><div class="bar k2" style="width: 30%"></div></div><span class="bar-value">55</span></div>
+        </div>
+      </div>
+      <figcaption>Figure 1. What these charts cover, and what they leave out.</figcaption>
+    </figure>
+
+    <pre class="code"><code>def compound(start, rate, years):
+    <span class="cm"># value after each year, including year 0</span>
+    return [start * (1 + rate) ** t for t in range(years + 1)]</code></pre>
+
+    <!-- Interactive chart: render the default state into the HTML so it reads without JS; the script redraws it. -->
+    <figure class="chart-frame" id="explorer">
+      <div class="controls" hidden>
+        <label><span>Growth rate, <output id="rate-out">5%</output></span><input id="rate" type="range" min="0" max="10" step="0.5" value="5" /></label>
+      </div>
+      <div class="stats" aria-live="polite">
+        <p class="stat"><b id="final">163</b>Value after 10 years</p>
+      </div>
+      <div class="chart-scroll">
+        <svg class="chart" viewBox="0 0 600 220" role="img" aria-label="Value over 10 years">
+          <line class="gl" x1="40" x2="590" y1="12" y2="12" /><text x="34" y="12" dy="0.35em" text-anchor="end">200</text>
+          <line class="gl" x1="40" x2="590" y1="101" y2="101" /><text x="34" y="101" dy="0.35em" text-anchor="end">100</text>
+          <line class="ax" x1="40" x2="590" y1="190" y2="190" /><text x="34" y="190" dy="0.35em" text-anchor="end">0</text>
+          <text x="40" y="208" text-anchor="middle">Year 0</text><text x="590" y="208" text-anchor="end">Year 10</text>
+          <path id="growth" class="line" d="M40.0 101.0 L95.0 96.5 L150.0 91.9 L205.0 87.0 L260.0 81.8 L315.0 76.4 L370.0 70.7 L425.0 64.8 L480.0 58.5 L535.0 51.9 L590.0 45.0" />
+        </svg>
+      </div>
+      <figcaption>Figure 2. Value of 100 compounding yearly at the default 5%. With JavaScript on, the slider redraws the line.</figcaption>
+    </figure>
+    <script>
+      addEventListener("DOMContentLoaded", () => {
+        const $ = (id) => document.getElementById(id);
+        const draw = () => {
+          const r = $("rate").value / 100;
+          const pts = Array.from({ length: 11 }, (_, t) => 100 * (1 + r) ** t);
+          const y = (v) => 190 - (v / 200) * 178;
+          $("growth").setAttribute("d", "M" + pts.map((v, t) => `${40 + t * 55} ${y(v).toFixed(1)}`).join(" L"));
+          $("rate-out").value = `${$("rate").value}%`;
+          $("final").textContent = Math.round(pts[10]);
+        };
+        document.querySelector("#explorer .controls").hidden = false;
+        $("rate").addEventListener("input", draw);
+      });
+    </script>
+
+    <pre class="mermaid">
+flowchart LR
+  A[Source] --> B[Process] --> C[Output]
+    </pre>
+    <p class="caption">Figure 3. Diagrams take a .caption paragraph straight after the source block.</p>
+
+    <h2 id="s3">3. Open questions</h2>
+    <div class="table-scroll" role="region" aria-label="Open questions" tabindex="0">
+      <table>
+        <tr><th>#</th><th>Question</th><th>Owner</th><th>Status</th></tr>
+        <tr id="q1"><td>1</td><td>Question text?</td><td>Name</td><td><span class="st pending">Pending</span></td></tr>
+        <tr id="q2"><td>2</td><td>Question text?</td><td>Name</td><td><span class="st answered">Answered</span></td></tr>
+      </table>
+    </div>
+
+    <footer>
+      Authored by Author Name<br />
+      Last updated: <time datetime="2026-10-23">23 October 2026</time>
+    </footer>
+  </body>
+</html>
