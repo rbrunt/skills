@@ -1,7 +1,7 @@
 ---
 name: user-story-map
-description: "Build a user story map from source material, or critique an existing map's journey and MVP / walking-skeleton scope."
-argument-hint: "[build · critique] [map file, share link or sources]"
+description: "Build a user story map from source material, update an existing map with new material, or critique a map's journey and MVP / walking-skeleton scope."
+argument-hint: "[build · update · critique] [map file, share link or sources]"
 ---
 
 Simplified user story maps: one backbone row of **steps**, cards under each step, and horizontal **milestones** that slice the cards into releases. There is no activity row above the steps. The map is a JSON file in the user's project, shown and edited in the app at https://user-story-map.richardbrunt.co.uk/.
@@ -14,6 +14,7 @@ Simplified user story maps: one backbone row of **steps**, cards under each step
    |---|---|---|
    | `build` | Make a map from specs, decision records, issues, glossary, notes | [reference/build.md](reference/build.md) |
    | `critique` | Challenge an existing map, especially what is in MVP | [reference/critique.md](reference/critique.md) |
+   | `update` | Fold new source material into an existing map | [reference/update.md](reference/update.md) |
 
 2. Read the mode's reference and [reference/format.md](reference/format.md) before touching a map file.
 3. Run `<skill-dir>/scripts/storymap --help` once. It has four commands: `check`, `show`, `link` and `open-link`. `<skill-dir>` is the folder that holds this SKILL.md.

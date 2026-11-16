@@ -10,7 +10,7 @@ Ask all of these in one round:
 - **Outcome**: what does the product do for them?
 - **Sources**: which material should you read, and do any need fetching (an issue tracker, Jira through an MCP, a wiki)?
 - **File**: where should the map go? Default: `docs/story-map.json`.
-- **Existing map**: is there one already? If there is, offer `critique` mode instead.
+- **Existing map**: is there one already? If there is, offer `update` or `critique` mode instead.
 
 Then read every source the user named. Note the glossary's terms. Treat decisions recorded as settled as **locked**.
 
