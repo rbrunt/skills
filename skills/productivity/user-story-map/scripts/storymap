@@ -1,0 +1,224 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "click",
+#   "pydantic",
+# ]
+# ///
+"""Check, view and share user story map files for user-story-map.richardbrunt.co.uk.
+
+The map JSON file is the only state: edit it directly, then run `check`.
+
+\b
+Typical loop:
+  storymap check docs/story-map.json     # exit 1 and list problems if invalid
+  storymap show docs/story-map.json      # outline: milestone > step > cards
+  storymap link docs/story-map.json      # share link that opens the map in the app
+  storymap open-link URL -o map.json     # decode a share link back into a file
+
+\b
+show markers: `?` question card, `[~]` in progress, `[x]` done, `(ref)` referenceId.
+"""
+
+import base64
+import json
+import sys
+import zlib
+from pathlib import Path
+from typing import Literal
+
+import click
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+APP_URL = "https://user-story-map.richardbrunt.co.uk/"
+MAX_LINK_LENGTH = 32 * 1024
+
+
+class Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+def _id(value: str) -> str:
+    if not value or "|" in value:
+        raise ValueError("id must be non-empty and cannot contain |")
+    return value
+
+
+class Step(Strict):
+    id: str
+    title: str
+    _check_id = field_validator("id")(_id)
+
+
+class Milestone(Step):
+    pass
+
+
+class Card(Strict):
+    id: str
+    kind: Literal["story", "question"]
+    status: Literal["todo", "in-progress", "done"] = "todo"
+    title: str
+    description: str | None
+    referenceId: str | None = Field(default=None)
+    _check_id = field_validator("id")(_id)
+
+
+class StoryMap(Strict):
+    version: Literal[1]
+    title: str
+    description: str
+    steps: list[Step]
+    milestones: list[Milestone] = Field(min_length=1)
+    cards: dict[str, Card]
+    cells: dict[str, list[str]]
+
+
+def problems(data: object) -> tuple[StoryMap | None, list[str]]:
+    """Validate against the app's rules. Returns the parsed map and a list of problems."""
+    try:
+        m = StoryMap.model_validate(data)
+    except ValidationError as e:
+        return None, [f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()]
+    errs: list[str] = []
+    for name, items in (("step", m.steps), ("milestone", m.milestones)):
+        ids = [i.id for i in items]
+        errs += [f"duplicate {name} id: {i}" for i in sorted({i for i in ids if ids.count(i) > 1})]
+    step_ids = {s.id for s in m.steps}
+    milestone_ids = {s.id for s in m.milestones}
+    errs += [f"cards.{k}: key must equal card id ({c.id})" for k, c in m.cards.items() if k != c.id]
+    placed: set[str] = set()
+    for key, ids in m.cells.items():
+        parts = key.split("|")
+        if len(parts) != 2 or not all(parts):
+            errs.append(f"cells.{key}: key must be stepId|milestoneId")
+            continue
+        if parts[0] not in step_ids:
+            errs.append(f"cells.{key}: unknown step {parts[0]}")
+        if parts[1] not in milestone_ids:
+            errs.append(f"cells.{key}: unknown milestone {parts[1]}")
+        if not ids:
+            errs.append(f"cells.{key}: empty cell, remove the key")
+        for cid in ids:
+            if cid not in m.cards:
+                errs.append(f"cells.{key}: unknown card {cid}")
+            elif cid in placed:
+                errs.append(f"cells.{key}: card {cid} is in more than one cell")
+            placed.add(cid)
+    errs += [f"cards.{k}: not placed in any cell" for k in m.cards if k not in placed]
+    return (m if not errs else None), errs
+
+
+def load(path: Path) -> StoryMap:
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        raise click.ClickException(f"cannot read {path}: {e}")
+    m, errs = problems(data)
+    if errs:
+        raise click.ClickException(f"{path} is invalid:\n" + "\n".join(f"  - {e}" for e in errs))
+    return m
+
+
+def to_json(m: StoryMap) -> dict:
+    data = m.model_dump(mode="json")
+    for card in data["cards"].values():
+        if card["referenceId"] is None:
+            del card["referenceId"]
+    return data
+
+
+def outline(m: StoryMap, milestone: str | None) -> str:
+    milestones = [ms for ms in m.milestones if milestone in (None, ms.id, ms.title)]
+    if not milestones:
+        raise click.ClickException(f"no milestone with id or title {milestone!r}")
+    lines = [f"# {m.title}"] + ([m.description] if m.description else [])
+    summary, gaps = [], []
+    for ms in milestones:
+        cells = [(s, m.cells.get(f"{s.id}|{ms.id}", [])) for s in m.steps]
+        count = sum(len(ids) for _, ids in cells)
+        summary.append(f"{ms.title} {count}")
+        empty = [s.title for s, ids in cells if not ids]
+        if empty:
+            gaps.append(f"{ms.title}: {', '.join(empty)}")
+        lines += ["", f"## {ms.title} `{ms.id}` ({count})"]
+        for step, ids in cells:
+            lines.append(f"### {step.title} `{step.id}`")
+            for cid in ids:
+                c = m.cards[cid]
+                mark = {"todo": "", "in-progress": "[~] ", "done": "[x] "}[c.status]
+                q = "? " if c.kind == "question" else ""
+                ref = f" ({c.referenceId})" if c.referenceId else ""
+                lines.append(f"- {mark}{q}{c.title} `{c.id}`{ref}")
+    lines += ["", f"Cards: {' · '.join(summary)}"]
+    lines.append("Empty steps: " + ("; ".join(gaps) if gaps else "none"))
+    return "\n".join(lines)
+
+
+def encode_link(m: StoryMap) -> str:
+    c = zlib.compressobj(9, zlib.DEFLATED, -15)
+    raw = c.compress(json.dumps(to_json(m), ensure_ascii=False).encode()) + c.flush()
+    return f"{APP_URL}#map={base64.urlsafe_b64encode(raw).decode().rstrip('=')}"
+
+
+def decode_link(url: str) -> object:
+    _, sep, fragment = url.partition("#map=")
+    if not sep:
+        raise click.ClickException("not a share link: no #map= fragment")
+    try:
+        raw = base64.urlsafe_b64decode(fragment + "=" * (-len(fragment) % 4))
+        return json.loads(zlib.decompress(raw, -15))
+    except (ValueError, zlib.error) as e:
+        raise click.ClickException(f"cannot decode share link: {e}")
+
+
+@click.group(help=__doc__)
+def cli() -> None:
+    pass
+
+
+@cli.command()
+@click.argument("file", type=click.Path(path_type=Path))
+def check(file: Path) -> None:
+    """Validate FILE against the app's format rules. Exit 1 listing every problem."""
+    m = load(file)
+    click.echo(f"ok: {len(m.steps)} steps, {len(m.milestones)} milestones, {len(m.cards)} cards")
+
+
+@cli.command()
+@click.argument("file", type=click.Path(path_type=Path))
+@click.option("--milestone", help="Only this milestone (id or title).")
+def show(file: Path, milestone: str | None) -> None:
+    """Print FILE as a Markdown outline: milestone > step > cards, then counts and empty steps."""
+    click.echo(outline(load(file), milestone))
+
+
+@cli.command()
+@click.argument("file", type=click.Path(path_type=Path))
+def link(file: Path) -> None:
+    """Print a share link for FILE. Opening it imports the map into the app as a new map."""
+    url = encode_link(load(file))
+    click.echo(url)
+    if len(url) > MAX_LINK_LENGTH:
+        raise click.ClickException(f"link is {len(url)} chars; the app rejects links over {MAX_LINK_LENGTH}. Share the file instead.")
+
+
+@cli.command("open-link")
+@click.argument("url")
+@click.option("-o", "--output", type=click.Path(path_type=Path), help="Write the map here instead of stdout.")
+def open_link(url: str, output: Path | None) -> None:
+    """Decode share link URL into map JSON (validated)."""
+    m, errs = problems(decode_link(url))
+    if errs:
+        raise click.ClickException("decoded map is invalid:\n" + "\n".join(f"  - {e}" for e in errs))
+    text = json.dumps(to_json(m), indent=2, ensure_ascii=False) + "\n"
+    if output:
+        output.write_text(text)
+        click.echo(f"wrote {output}", err=True)
+    else:
+        sys.stdout.write(text)
+
+
+if __name__ == "__main__":
+    cli()
