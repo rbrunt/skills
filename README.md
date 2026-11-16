@@ -36,3 +36,8 @@ repos or CLIs on behalf of this one. Install these separately if wanted:
 `skills/productivity/grilling` is vendored from Matt Pocock's
 [skills repo](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md)
 under the MIT license; its license notice is kept alongside it.
+
+`skills/productivity/unslop` preserves the locally installed version of
+[Lauren Tan's pstack skill](https://github.com/cursor/plugins/tree/main/pstack/skills/unslop).
+It differs from current upstream and is redistributed under its MIT license;
+its license notice is kept alongside it.
