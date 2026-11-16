@@ -23,7 +23,7 @@ directory, or supplied by Matt Pocock's Claude Code plugin.
 
 ### Engineering
 
-- [call-graph-visualisation](skills/engineering/call-graph-visualisation/SKILL.md) — Trace a program or feature through a concise, source-checked ASCII call tree.
+- [call-graph-visualisation](skills/engineering/call-graph-visualisation/SKILL.md) — Explain code flow with a small call tree or sequence diagram when it helps more than prose.
 - [gh-stack](skills/engineering/gh-stack/SKILL.md) — Create and manage dependent pull requests with `gh stack`.
 - [git-commit](skills/engineering/git-commit/SKILL.md) — Write commit messages in my preferred style, grounded in the discussion behind the change.
 - [python-script](skills/engineering/python-script/SKILL.md) — Apply my conventions to standalone Python scripts, including PEP 723 dependencies and `uv`.
