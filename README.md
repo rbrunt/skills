@@ -37,7 +37,7 @@ repos or CLIs on behalf of this one. Install these separately if wanted:
 [skills repo](https://github.com/mattpocock/skills/blob/main/skills/productivity/grilling/SKILL.md)
 under the MIT license; its license notice is kept alongside it.
 
-`skills/productivity/unslop` preserves the locally installed version of
-[Lauren Tan's pstack skill](https://github.com/cursor/plugins/tree/main/pstack/skills/unslop).
-It differs from current upstream and is redistributed under its MIT license;
-its license notice is kept alongside it.
+`skills/productivity/unslop` is vendored from
+[Lauren Tan's pstack skill at bc697d0](https://github.com/cursor/plugins/blob/bc697d0a5a16/pstack/skills/unslop/SKILL.md).
+It is redistributed under its MIT license; its license notice is kept
+alongside it.
