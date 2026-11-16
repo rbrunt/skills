@@ -1,9 +1,9 @@
 ---
-name: call-graph-visualisation
+name: code-flow-visualisation
 description: Explain code flow with a small call tree for caller structure or a sequence diagram for interactions between components, when either makes the answer clearer than prose alone.
 ---
 
-# Call graph visualisation
+# Code flow visualisation
 
 Show the smallest verified path that answers the question. If prose is clearer, use prose instead; if the user asks for a call graph, show one.
 
