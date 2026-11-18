@@ -45,6 +45,6 @@ Finally, offer every minor finding as one batch.
 
 ## 5. Write
 
-1. Apply only the accepted changes.
-2. Run `check` and `show`.
+1. Apply only the accepted changes through `storymap edit`, following the editing rules in SKILL.md for unsupported structural changes.
+2. Run `show` and read the outline.
 3. Send a short changelog: what moved where, what was retitled, what was added. Include the new link and the file path.

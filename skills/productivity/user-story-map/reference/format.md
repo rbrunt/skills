@@ -1,6 +1,6 @@
 # Map format
 
-The app's file format (version 1). `storymap check` enforces every rule below. Edit the JSON with normal file tools.
+The app's file format (version 1). `storymap check` and every `storymap edit` command enforce these rules. Use this schema for initial creation and unsupported structural changes; use the editing CLI for card changes and step renaming.
 
 ```json
 {
@@ -30,7 +30,7 @@ The app's file format (version 1). `storymap check` enforces every rule below. E
 - `status` is `todo`, `in-progress` or `done`. `description` is a string or `null`.
 - `referenceId` is optional and names the card's source: an issue `#42`, a decision `D7`, a ticket `PROJ-123`. Set it whenever a card comes from an identifiable item.
 - Ids are short, stable kebab-case (`share-link`, `vote-limit`). Keep an id unchanged when you retitle or move its card, so diffs stay readable.
-- Moving a card means taking its id out of one cell's array and inserting it into another's.
+- `storymap edit FILE move-card` updates both cells automatically. Its optional `--index` is zero-based in the destination after removing the card; omitting it appends the card. Other cards keep their relative order.
 
 Domain terms:
 
