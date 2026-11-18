@@ -49,8 +49,8 @@ Take the change kinds in order: backbone, then add, retitle, resolve, remove, mo
 
 ## 6. Write
 
-1. Apply only the accepted changes. Removed cards are deleted; git history keeps them.
-2. Run `check` and `show`.
+1. Apply only the accepted changes through `storymap edit`, following the editing rules in SKILL.md for unsupported structural changes. Use `add-step --cards FILE` to add a step and its accepted cards together; see the command's help for the input format. Removed cards are deleted; git history keeps them.
+2. Run `show` and read the outline.
 3. Send a changelog: what was added, retitled, resolved, removed and moved. Include the link and the file path.
 
 If MVP changed (cards added, removed, or moved in or out), offer `critique`.

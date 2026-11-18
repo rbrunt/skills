@@ -26,22 +26,22 @@ Present the steps as a numbered list, each with a one-line description. Expect t
 
 ## 3. Cards
 
-1. Ask what to call the staging milestone. Default: `Unsorted`.
+1. Ask what to call the staging milestone. Default: `Unsorted`. Use `storymap edit FILE rename-milestone` if its title needs changing.
 2. Put every card in that one milestone, so nothing is claimed as MVP yet.
-3. Write one card per user-visible capability, titled in the glossary's terms.
+3. Add cards with `storymap edit FILE add-card`: one per user-visible capability, titled in the glossary's terms.
    - Prefix a role tag when the actor isn't obvious: `[Facilitator] Close the retro`.
    - Make each open decision a `question` card.
    - Put each cross-cutting concern (sync, access, security, analytics) under the step it touches most.
    - Set `referenceId` from the source item.
 
-**Gate:** every source item that maps to a capability or open decision has a card. Run `storymap check` and `storymap show`, then send the user the outline summary, the file path and the link.
+**Gate:** every source item that maps to a capability or open decision has a card. Run `storymap show`, then send the user the outline summary, the file path and the link.
 
 ## 4. Milestones
 
 1. Ask for milestone names, suggesting `MVP` / `Next` / `Later`.
 2. Propose a split, putting the walking skeleton in the first milestone.
 3. Present it per milestone as a short list of card titles. For each card that isn't obvious, give a one-line reason.
-4. Apply the user's changes and run `check` and `show`. A step left empty in the first milestone means the skeleton is broken: raise it.
+4. Apply the user's changes. Add milestones with `storymap edit FILE add-milestone`, using `--index` for release order, then place cards with `storymap edit FILE move-card`. Run `show`. A step left empty in the first milestone means the skeleton is broken: raise it.
 
 **Gate:** the user accepts the split. Send the final link and file path.
 

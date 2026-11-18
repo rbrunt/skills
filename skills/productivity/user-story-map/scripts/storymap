@@ -6,16 +6,18 @@
 #   "pydantic",
 # ]
 # ///
-"""Check, view and share user story map files for user-story-map.richardbrunt.co.uk.
+"""Edit, view and share user story map files for user-story-map.richardbrunt.co.uk.
 
-The map JSON file is the only state: edit it directly, then run `check`.
+The map JSON file is the only state. Edit commands validate before saving;
+review the outline with `show` after each accepted batch of changes.
 
 \b
 Typical loop:
-  storymap check docs/story-map.json     # exit 1 and list problems if invalid
-  storymap show docs/story-map.json      # outline: milestone > step > cards
-  storymap link docs/story-map.json      # share link that opens the map in the app
-  storymap open-link URL -o map.json     # decode a share link back into a file
+  storymap edit map.json set-card share-link --title 'Share a private link'
+  storymap show map.json                 # outline: milestone > step > cards
+  storymap link map.json                 # share link that imports into the app
+  storymap check map.json                # validate a new or externally edited map
+  storymap open-link URL -o map.json      # decode a share link back into a file
 
 \b
 show markers: `?` question card, `[~]` in progress, `[x]` done, `(ref)` referenceId.
@@ -23,13 +25,16 @@ show markers: `?` question card, `[~]` in progress, `[x]` done, `(ref)` referenc
 
 import base64
 import json
+import stat
 import sys
 import zlib
+from collections.abc import Callable
 from pathlib import Path
-from typing import Literal
+from tempfile import NamedTemporaryFile
+from typing import Literal, TextIO
 
 import click
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, field_validator
 
 APP_URL = "https://user-story-map.richardbrunt.co.uk/"
 MAX_LINK_LENGTH = 32 * 1024
@@ -63,6 +68,13 @@ class Card(Strict):
     description: str | None
     referenceId: str | None = Field(default=None)
     _check_id = field_validator("id")(_id)
+
+
+class StepCard(Card):
+    """Card input for add-step; placement is specified by milestone ID."""
+    kind: Literal["story", "question"] = "story"
+    description: str | None = None
+    milestone: str
 
 
 class StoryMap(Strict):
@@ -110,15 +122,84 @@ def problems(data: object) -> tuple[StoryMap | None, list[str]]:
     return (m if not errs else None), errs
 
 
-def load(path: Path) -> StoryMap:
+def read_map(path: Path) -> tuple[dict, StoryMap]:
+    """Keep the raw JSON as well as the model, so edits preserve omitted defaults."""
     try:
-        data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as e:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as e:
         raise click.ClickException(f"cannot read {path}: {e}")
     m, errs = problems(data)
     if errs:
         raise click.ClickException(f"{path} is invalid:\n" + "\n".join(f"  - {e}" for e in errs))
-    return m
+    return data, m
+
+
+def load(path: Path) -> StoryMap:
+    return read_map(path)[1]
+
+
+def edit_map(path: Path, change: Callable[[dict], None]) -> None:
+    """Validate and atomically replace a map; failed edits leave the file untouched."""
+    temporary = None
+    try:
+        # Follow a map symlink rather than replacing the link itself.
+        target = path.resolve(strict=True)
+        data, _ = read_map(target)
+        change(data)
+        _, errs = problems(data)
+        if errs:
+            raise click.ClickException("edit is invalid:\n" + "\n".join(f"  - {e}" for e in errs))
+        text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as output:
+            temporary = Path(output.name)
+            output.write(text)
+        temporary.chmod(stat.S_IMODE(target.stat().st_mode))
+        temporary.replace(target)
+    except OSError as e:
+        raise click.ClickException(f"cannot edit {path}: {e}")
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    click.echo(f"ok: edited {path}")
+
+
+def get_card(data: dict, card_id: str) -> dict:
+    if card_id not in data["cards"]:
+        raise click.ClickException(f"unknown card: {card_id}")
+    return data["cards"][card_id]
+
+
+def unplace_card(data: dict, card_id: str) -> None:
+    for key, ids in list(data["cells"].items()):
+        if card_id in ids:
+            ids.remove(card_id)
+            if not ids:
+                del data["cells"][key]
+            return
+
+
+def place_card(data: dict, card_id: str, step: str, milestone: str, index: int | None) -> None:
+    if step not in {s["id"] for s in data["steps"]}:
+        raise click.ClickException(f"unknown step: {step}")
+    if milestone not in {m["id"] for m in data["milestones"]}:
+        raise click.ClickException(f"unknown milestone: {milestone}")
+    key = f"{step}|{milestone}"
+    cell = data["cells"].get(key, [])
+    position = len(cell) if index is None else index
+    if not 0 <= position <= len(cell):
+        raise click.ClickException(f"index must be between 0 and {len(cell)} in destination cell {key}")
+    cell.insert(position, card_id)
+    data["cells"][key] = cell
+
+
+def add_item(data: dict, collection: str, item_id: str, title: str, index: int | None) -> None:
+    items = data[collection]
+    if any(item["id"] == item_id for item in items):
+        raise click.ClickException(f"{collection} already contains id: {item_id}")
+    position = len(items) if index is None else index
+    if not 0 <= position <= len(items):
+        raise click.ClickException(f"index must be between 0 and {len(items)} in {collection}")
+    items.insert(position, {"id": item_id, "title": title})
 
 
 def to_json(m: StoryMap) -> dict:
@@ -176,6 +257,196 @@ def decode_link(url: str) -> object:
 @click.group(help=__doc__)
 def cli() -> None:
     pass
+
+
+@cli.group()
+@click.argument("file", type=click.Path(path_type=Path, dir_okay=False))
+@click.pass_context
+def edit(ctx: click.Context, file: Path) -> None:
+    """Edit FILE using stable IDs. Each command validates before saving atomically.
+
+    \b
+    storymap edit map.json set-card share-link --status done
+    storymap edit map.json move-card share-link --step join --milestone mvp
+
+    Run show after an accepted batch to review the result; no separate check is
+    needed. Commands are individually atomic, not transactional as a batch.
+    """
+    ctx.obj = file
+
+
+@edit.command("set-card")
+@click.argument("card_id")
+@click.option("--title", help="Replace the title, keeping the card ID.")
+@click.option("--description", help="Replace the description.")
+@click.option("--clear-description", is_flag=True, help="Set the description to null.")
+@click.option("--reference", help="Replace referenceId with this source reference.")
+@click.option("--clear-reference", is_flag=True, help="Remove referenceId.")
+@click.option("--kind", type=click.Choice(["story", "question"]))
+@click.option("--status", type=click.Choice(["todo", "in-progress", "done"]))
+@click.pass_obj
+def set_card(file: Path, card_id: str, title: str | None, description: str | None,
+             clear_description: bool, reference: str | None, clear_reference: bool,
+             kind: str | None, status: str | None) -> None:
+    """Update only the supplied fields of CARD_ID; keep placement unchanged."""
+    if description is not None and clear_description:
+        raise click.UsageError("use either --description or --clear-description")
+    if reference is not None and clear_reference:
+        raise click.UsageError("use either --reference or --clear-reference")
+    fields = {k: v for k, v in {"title": title, "description": description, "referenceId": reference, "kind": kind, "status": status}.items() if v is not None}
+    if clear_description:
+        fields["description"] = None
+    if not fields and not clear_reference:
+        raise click.UsageError("supply at least one field to update")
+
+    def change(data: dict) -> None:
+        card = get_card(data, card_id)
+        card.update(fields)
+        if clear_reference:
+            card.pop("referenceId", None)
+
+    edit_map(file, change)
+
+
+@edit.command("add-card")
+@click.argument("card_id")
+@click.option("--title", required=True)
+@click.option("--step", required=True, help="Destination step ID.")
+@click.option("--milestone", required=True, help="Destination milestone ID.")
+@click.option("--index", type=click.IntRange(min=0), help="Zero-based position; defaults to appending.")
+@click.option("--description", default=None, help="Description; defaults to null.")
+@click.option("--reference", help="Source referenceId.")
+@click.option("--kind", type=click.Choice(["story", "question"]), default="story", show_default=True)
+@click.option("--status", type=click.Choice(["todo", "in-progress", "done"]), default="todo", show_default=True)
+@click.pass_obj
+def add_card(file: Path, card_id: str, title: str, step: str, milestone: str,
+             index: int | None, description: str | None, reference: str | None,
+             kind: str, status: str) -> None:
+    """Add CARD_ID to a destination cell, creating the cell if needed."""
+    def change(data: dict) -> None:
+        if card_id in data["cards"]:
+            raise click.ClickException(f"card already exists: {card_id}")
+        card = {"id": card_id, "kind": kind, "status": status, "title": title, "description": description}
+        if reference is not None:
+            card["referenceId"] = reference
+        data["cards"][card_id] = card
+        place_card(data, card_id, step, milestone, index)
+
+    edit_map(file, change)
+
+
+@edit.command("remove-card")
+@click.argument("card_id")
+@click.pass_obj
+def remove_card(file: Path, card_id: str) -> None:
+    """Delete CARD_ID and its placement; remove an emptied source cell."""
+    def change(data: dict) -> None:
+        get_card(data, card_id)
+        del data["cards"][card_id]
+        unplace_card(data, card_id)
+
+    edit_map(file, change)
+
+
+@edit.command("move-card")
+@click.argument("card_id")
+@click.option("--step", required=True, help="Destination step ID.")
+@click.option("--milestone", required=True, help="Destination milestone ID.")
+@click.option("--index", type=click.IntRange(min=0), help="Zero-based destination position AFTER removal; defaults to appending.")
+@click.pass_obj
+def move_card(file: Path, card_id: str, step: str, milestone: str, index: int | None) -> None:
+    """Move or reorder CARD_ID, preserving fields and other cards' relative order."""
+    def change(data: dict) -> None:
+        get_card(data, card_id)
+        unplace_card(data, card_id)
+        place_card(data, card_id, step, milestone, index)
+
+    edit_map(file, change)
+
+
+@edit.command("add-step")
+@click.argument("step_id")
+@click.option("--title", required=True)
+@click.option("--index", type=click.IntRange(min=0), help="Zero-based backbone position; defaults to appending.")
+@click.option("--cards", type=click.File("r", encoding="utf-8"), help="JSON array of new cards; use - for stdin. Added atomically with the step.")
+@click.pass_obj
+def add_step(file: Path, step_id: str, title: str, index: int | None, cards: TextIO | None) -> None:
+    """Add STEP_ID, optionally with cards placed in existing milestones.
+
+    --cards accepts objects with id, title and milestone (an existing ID).
+    Optional fields: kind (story), status (todo), description (null), referenceId.
+    Array order sets card order within each milestone. An invalid entry aborts
+    the entire edit, including the step. Other fields are rejected.
+
+    \b
+    storymap edit map.json add-step export --title 'Export actions' --cards - <<'JSON'
+    [{"id":"csv","title":"Download CSV","milestone":"mvp","referenceId":"#42"}]
+    JSON
+    """
+    entries = []
+    if cards is not None:
+        try:
+            entries = TypeAdapter(list[StepCard]).validate_json(cards.read())
+        except (ValidationError, OSError, UnicodeError) as e:
+            raise click.ClickException(f"invalid --cards JSON: {e}")
+
+    def change(data: dict) -> None:
+        add_item(data, "steps", step_id, title, index)
+        for entry in entries:
+            if entry.id in data["cards"]:
+                raise click.ClickException(f"card already exists: {entry.id}")
+            card = entry.model_dump(mode="json", exclude={"milestone", "referenceId"})
+            if entry.referenceId is not None:
+                card["referenceId"] = entry.referenceId
+            data["cards"][entry.id] = card
+            place_card(data, entry.id, step_id, entry.milestone, None)
+
+    edit_map(file, change)
+
+
+@edit.command("add-milestone")
+@click.argument("milestone_id")
+@click.option("--title", required=True)
+@click.option("--index", type=click.IntRange(min=0), help="Zero-based release position; defaults to appending.")
+@click.pass_obj
+def add_milestone(file: Path, milestone_id: str, title: str, index: int | None) -> None:
+    """Add an empty MILESTONE_ID without changing cards or placements."""
+    def change(data: dict) -> None:
+        add_item(data, "milestones", milestone_id, title, index)
+
+    edit_map(file, change)
+
+
+@edit.command("rename-milestone")
+@click.argument("milestone_id")
+@click.option("--title", required=True)
+@click.pass_obj
+def rename_milestone(file: Path, milestone_id: str, title: str) -> None:
+    """Rename MILESTONE_ID without changing its ID or any placements."""
+    def change(data: dict) -> None:
+        for milestone in data["milestones"]:
+            if milestone["id"] == milestone_id:
+                milestone["title"] = title
+                return
+        raise click.ClickException(f"unknown milestone: {milestone_id}")
+
+    edit_map(file, change)
+
+
+@edit.command("rename-step")
+@click.argument("step_id")
+@click.option("--title", required=True)
+@click.pass_obj
+def rename_step(file: Path, step_id: str, title: str) -> None:
+    """Rename STEP_ID without changing its ID or any placements."""
+    def change(data: dict) -> None:
+        for step in data["steps"]:
+            if step["id"] == step_id:
+                step["title"] = title
+                return
+        raise click.ClickException(f"unknown step: {step_id}")
+
+    edit_map(file, change)
 
 
 @cli.command()
