@@ -26,7 +26,7 @@ Present the steps as a numbered list, each with a one-line description. Expect t
 
 ## 3. Cards
 
-1. Ask what to call the staging milestone. Default: `Unsorted`.
+1. Ask what to call the staging milestone. Default: `Unsorted`. Use `storymap edit FILE rename-milestone` if its title needs changing.
 2. Put every card in that one milestone, so nothing is claimed as MVP yet.
 3. Add cards with `storymap edit FILE add-card`: one per user-visible capability, titled in the glossary's terms.
    - Prefix a role tag when the actor isn't obvious: `[Facilitator] Close the retro`.
@@ -41,7 +41,7 @@ Present the steps as a numbered list, each with a one-line description. Expect t
 1. Ask for milestone names, suggesting `MVP` / `Next` / `Later`.
 2. Propose a split, putting the walking skeleton in the first milestone.
 3. Present it per milestone as a short list of card titles. For each card that isn't obvious, give a one-line reason.
-4. Apply the user's changes. Define new milestones in JSON and run `check` before placing cards with `storymap edit FILE move-card`. Then run `show`. A step left empty in the first milestone means the skeleton is broken: raise it.
+4. Apply the user's changes. Add milestones with `storymap edit FILE add-milestone`, using `--index` for release order, then place cards with `storymap edit FILE move-card`. Run `show`. A step left empty in the first milestone means the skeleton is broken: raise it.
 
 **Gate:** the user accepts the split. Send the final link and file path.
 

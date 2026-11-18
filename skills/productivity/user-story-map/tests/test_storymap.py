@@ -66,11 +66,11 @@ class StorymapTests(unittest.TestCase):
     def reset(self):
         self.path.write_text(json.dumps(self.original, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    def invoke(self, *args):
-        return self.runner.invoke(storymap.cli, list(map(str, args)))
+    def invoke(self, *args, **kwargs):
+        return self.runner.invoke(storymap.cli, list(map(str, args)), **kwargs)
 
-    def edit(self, *args, path=None):
-        return self.invoke("edit", path or self.path, *args)
+    def edit(self, *args, path=None, input=None):
+        return self.invoke("edit", path or self.path, *args, input=input)
 
     def assert_success(self, result, expected):
         self.assertEqual(result.exit_code, 0, f"{result.output}\n{result.exception!r}")
@@ -83,10 +83,10 @@ class StorymapTests(unittest.TestCase):
         self.assertEqual(checked.exit_code, 0, checked.output)
         self.assertEqual(set(self.root.iterdir()), {self.path})
 
-    def assert_failure(self, *args):
+    def assert_failure(self, *args, input=None):
         before = self.path.read_bytes()
         entries = set(self.root.rglob("*"))
-        result = self.edit(*args)
+        result = self.edit(*args, input=input)
         self.assertNotEqual(result.exit_code, 0, result.output)
         self.assertTrue(result.output.strip(), "failures should explain the problem")
         self.assertNotIn("Traceback", result.output)
@@ -208,6 +208,98 @@ class StorymapTests(unittest.TestCase):
         expected["steps"][0]["title"] = "Découvrir"
         self.assert_success(self.edit("rename-step", "browse", "--title", "Découvrir"), expected)
 
+    def test_add_step_and_milestone_positions(self):
+        for command, collection in (("add-step", "steps"), ("add-milestone", "milestones")):
+            for index in (None, 0, 1, 2):
+                with self.subTest(command=command, index=index):
+                    self.reset()
+                    expected = copy.deepcopy(self.original)
+                    expected[collection].insert(2 if index is None else index, {"id": "new", "title": "Après"})
+                    args = [command, "new", "--title", "Après"]
+                    if index is not None:
+                        args += ["--index", index]
+                    self.assert_success(self.edit(*args), expected)
+
+    def test_rename_milestone_preserves_placements(self):
+        expected = copy.deepcopy(self.original)
+        expected["milestones"][0]["title"] = "Walking skeleton"
+        self.assert_success(self.edit("rename-milestone", "mvp", "--title", "Walking skeleton"), expected)
+
+    def test_structure_rejections_leave_map_unchanged(self):
+        for command, duplicate in (("add-step", "browse"), ("add-milestone", "mvp")):
+            for item_id in (duplicate, "", "bad|id"):
+                with self.subTest(command=command, item_id=item_id):
+                    self.assert_failure(command, item_id, "--title", "New")
+            for index in ("-1", "3", "1.5", "abc"):
+                with self.subTest(command=command, index=index):
+                    self.assert_failure(command, "new", "--title", "New", "--index", index)
+        self.assert_failure("rename-milestone", "missing", "--title", "New")
+
+    def test_add_step_with_cards_from_file_or_stdin(self):
+        cards = [
+            {"id": "first", "title": "Premier", "milestone": "mvp", "referenceId": "CAFE-5"},
+            {"id": "question", "title": "Pourquoi?", "milestone": "later", "kind": "question", "status": "in-progress", "description": "À décider"},
+            {"id": "second", "title": "Deuxième", "milestone": "mvp"},
+        ]
+        expected = copy.deepcopy(self.original)
+        expected["steps"].insert(1, {"id": "new", "title": "Goûter"})
+        for entry in cards:
+            card = {"kind": "story", "status": "todo", "description": None, **entry}
+            del card["milestone"]
+            expected["cards"][card["id"]] = card
+        expected["cells"]["new|mvp"] = ["first", "second"]
+        expected["cells"]["new|later"] = ["question"]
+        payload = json.dumps(cards, ensure_ascii=False)
+        with tempfile.TemporaryDirectory() as inputs:
+            cards_file = Path(inputs) / "cards.json"
+            cards_file.write_text(payload, encoding="utf-8")
+            for source in ("-", str(cards_file)):
+                with self.subTest(source=source):
+                    self.reset()
+                    calls = []
+                    replace = Path.replace
+
+                    def record_replace(path, target):
+                        calls.append((path, target))
+                        return replace(path, target)
+
+                    with mock.patch.object(Path, "replace", new=record_replace):
+                        result = self.edit("add-step", "new", "--title", "Goûter", "--index", "1", "--cards", source,
+                                           input=payload if source == "-" else None)
+                    self.assert_success(result, expected)
+                    self.assertEqual(len(calls), 1, "step and all cards must be saved together")
+
+    def test_add_step_accepts_empty_card_list(self):
+        expected = copy.deepcopy(self.original)
+        expected["steps"].append({"id": "new", "title": "New"})
+        self.assert_success(self.edit("add-step", "new", "--title", "New", "--cards", "-", input="[]"), expected)
+
+    def test_add_step_rejects_entire_card_batch_on_any_error(self):
+        valid = {"id": "first", "title": "First", "milestone": "mvp"}
+        invalid_cards = [
+            {"id": "a", "title": "Duplicate existing", "milestone": "mvp"},
+            valid,  # Duplicate ID within the batch.
+            {**valid, "id": "new", "milestone": "missing"},
+            {"id": "new", "title": "Missing milestone"},
+            {"id": "new", "milestone": "mvp"},
+            {**valid, "id": "bad|id"},
+            {**valid, "id": ""},
+            {**valid, "id": "new", "kind": "task"},
+            {**valid, "id": "new", "status": "finished"},
+            {**valid, "id": "new", "step": "order"},
+            {**valid, "id": "new", "index": 0},
+        ]
+        for card in invalid_cards:
+            with self.subTest(card=card):
+                self.assert_failure("add-step", "new-step", "--title", "New", "--cards", "-", input=json.dumps([valid, card]))
+        for payload in ("not json", "{}", "null", '[{"id":'):
+            with self.subTest(payload=payload):
+                self.assert_failure("add-step", "new-step", "--title", "New", "--cards", "-", input=payload)
+        self.assert_failure("add-step", "browse", "--title", "Duplicate", "--cards", "-", input=json.dumps([valid]))
+        self.assert_failure("add-step", "new-step", "--title", "New", "--cards", self.root / "missing.json")
+        with mock.patch.object(Path, "replace", side_effect=OSError("replacement denied")):
+            self.assert_failure("add-step", "new-step", "--title", "New", "--cards", "-", input=json.dumps([valid]))
+
     def test_rejects_missing_fields_and_conflicting_flags(self):
         cases = [
             ("set-card", "a"),
@@ -219,6 +311,9 @@ class StorymapTests(unittest.TestCase):
             ("move-card", "a", "--step", "browse"),
             ("move-card", "a", "--milestone", "mvp"),
             ("rename-step", "browse"),
+            ("add-step", "new"),
+            ("add-milestone", "new"),
+            ("rename-milestone", "mvp"),
         ]
         for args in cases:
             with self.subTest(args=args):
@@ -269,6 +364,9 @@ class StorymapTests(unittest.TestCase):
                 ("move-card", "a", "--step", "order", "--milestone", "mvp"),
                 ("remove-card", "a"),
                 ("rename-step", "browse", "--title", "New"),
+                ("add-step", "new", "--title", "New"),
+                ("add-milestone", "new", "--title", "New"),
+                ("rename-milestone", "mvp", "--title", "New"),
             ):
                 with self.subTest(text=text[:20], command=args[0]):
                     self.path.write_text(text, encoding="utf-8")

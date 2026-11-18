@@ -1,6 +1,6 @@
 # Map format
 
-The app's file format (version 1). `storymap check` and every `storymap edit` command enforce these rules. Use this schema for initial creation and unsupported structural changes; use the editing CLI for card changes and step renaming.
+The app's file format (version 1). `storymap check` and every `storymap edit` command enforce these rules. Use this schema for initial creation and unsupported structural changes; use the editing CLI for card changes and for adding or renaming steps and milestones.
 
 ```json
 {
