@@ -14,6 +14,7 @@ the rest of the README alone.
 \b
   c4docs render DIR    # validate, then write every view's region into README.md
   c4docs check DIR     # validate, then exit 1 if README.md differs from a fresh render
+  c4docs view DIR      # serve LikeC4's interactive viewer in a browser until stopped
 
 \b
 A region looks like this. `render` appends regions for new views and deletes
@@ -27,7 +28,9 @@ Needs `npx` (Node) on PATH; runs a pinned likec4.
 
 import difflib
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -158,6 +161,24 @@ def load_views(model_dir: Path) -> list[dict]:
         return views_of(json.loads(dump.read_text(encoding="utf-8")))
 
 
+def serve(command: list[str]) -> int:
+    """Run a server until it exits or we are told to stop, then stop its whole process group.
+
+    npx starts the server as a grandchild, which would outlive a plain terminate.
+    """
+    server = subprocess.Popen(command, stdin=subprocess.DEVNULL, start_new_session=True)
+
+    def stop(*_: object) -> None:
+        try:
+            os.killpg(server.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, stop)
+    return server.wait()
+
+
 def _readme(model_dir: Path) -> tuple[Path, str]:
     path = model_dir / "README.md"
     return path, path.read_text(encoding="utf-8") if path.exists() else ""
@@ -194,6 +215,20 @@ def check(model_dir: Path) -> None:
         )
         raise click.ClickException(f"{path} is stale; run: c4docs render {model_dir}")
     click.echo(f"{path}: {len(views)} views match the model")
+
+
+@cli.command()
+@DIR
+@click.option("--port", type=int, default=5173, show_default=True)
+def view(model_dir: Path, port: int) -> None:
+    """Serve the model in LikeC4's interactive browser viewer until stopped.
+
+    The page reloads as the .c4 files change. It is LikeC4's own drawing of
+    the model, so it looks different from the README's Mermaid.
+    """
+    click.echo(f"Starting the viewer; LikeC4 prints its URL below (http://localhost:{port}/ unless the port is taken).")
+    sys.stdout.flush()
+    sys.exit(serve([*LIKEC4, "start", "--port", str(port), str(model_dir)]))
 
 
 if __name__ == "__main__":

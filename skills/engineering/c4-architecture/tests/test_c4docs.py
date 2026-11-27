@@ -5,8 +5,10 @@ Run with: uv run --with click python -m unittest discover -s skills/engineering/
 
 import importlib.machinery
 import importlib.util
+import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -137,6 +139,32 @@ class CliTest(unittest.TestCase):
         result, after = self.run_cli("check")
         self.assertEqual(result.exit_code, 1)
         self.assertIsNone(after)
+
+    def test_view_serves_the_model_with_the_pinned_likec4(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(c4docs, "serve", return_value=0) as call:
+            result = CliRunner().invoke(c4docs.cli, ["view", tmp, "--port", "6001"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(call.call_args.args[0], [*c4docs.LIKEC4, "start", "--port", "6001", tmp])
+        self.assertIn("http://localhost:6001/", result.output)
+
+    def test_serve_stops_the_whole_process_group_when_terminated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pidfile = Path(tmp) / "pid"
+            grandchild = f"sleep 60 & echo $! > {pidfile}; wait"
+            runner = (
+                "import importlib.machinery, importlib.util, os, signal, sys, threading\n"
+                f"l = importlib.machinery.SourceFileLoader('c', {str(SCRIPT)!r})\n"
+                "m = importlib.util.module_from_spec(importlib.util.spec_from_loader('c', l)); l.exec_module(m)\n"
+                "threading.Timer(1, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()\n"
+                f"sys.exit(m.serve(['sh', '-c', {grandchild!r}]))\n"
+            )
+            subprocess.run([sys.executable, "-c", runner], timeout=20)
+            pid = int(pidfile.read_text())
+            for _ in range(20):
+                if not Path(f"/proc/{pid}").exists():
+                    break
+                time.sleep(0.1)
+            self.assertFalse(Path(f"/proc/{pid}").exists(), "grandchild outlived serve()")
 
 
 if __name__ == "__main__":
