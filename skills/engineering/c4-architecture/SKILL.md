@@ -24,6 +24,7 @@ The model describes the system **as built**. A proposed design has no code to ho
 ## Principles
 
 - **Evidence is your job.** Every element and relationship you propose rests on something you read: source, infrastructure-as-code, deploy config, CI, in that order of trust. Read before you ask. Ask the user only for what code cannot show: the people who use the system, why a boundary sits where it does, and the names and owners of external systems. Where code and existing docs disagree, the code wins and you report the disagreement.
+- **Fan out with subagents** when the reading is wide: one per repo, per container, or per slice of git history. Tell each what to look for and ask for findings with `path:line` evidence. Their reports are leads: open the evidence yourself for everything you go on to propose.
 - **Show the evidence, keep it out of the model.** At each gate, give every proposed element and relationship its `path:line`, or `from user`. Evidence lives in the conversation only.
 - **The user owns the model.** You propose, and they decide. Stop at each review gate named in the mode's reference and wait for their answer.
 - **Use the project's words.** Take element names from the code, the deploy config and the team's glossary.

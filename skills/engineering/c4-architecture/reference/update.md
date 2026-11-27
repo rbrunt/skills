@@ -22,8 +22,6 @@ Bring a model back in line with the code. Propose every edit with its evidence, 
 
 Component-level drift counts only for containers that already have a `components/` file.
 
-**Fan out with subagents** when the reading is wide: one per repo, per container, or per slice of history. Give each the model's relevant elements and relationships and ask for drift with `path:line` evidence. Their reports are leads: open the evidence for every edit you go on to propose.
-
 **Gate:** for a named change, every changed file is matched to an edit or noted as needing none. For a resync, every model element and relationship has evidence or is marked unsupported, and every deployable unit in the code is found in the model or marked missing.
 
 ## 3. Propose
