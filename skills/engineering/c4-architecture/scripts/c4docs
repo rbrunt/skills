@@ -1,0 +1,200 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "click",
+# ]
+# ///
+"""Render a LikeC4 model's views into README.md as Mermaid, and check they match.
+
+DIR holds the model's .c4 files and its README.md. The .c4 files are the only
+source; the script owns each README region between view markers and leaves
+the rest of the README alone.
+
+\b
+  c4docs render DIR    # validate, then write every view's region into README.md
+  c4docs check DIR     # validate, then exit 1 if README.md differs from a fresh render
+
+\b
+A region looks like this. `render` appends regions for new views and deletes
+regions whose view is gone; move a region anywhere in the README by hand.
+  <!-- c4:view containers -->
+  ...generated heading, description, diagram, key...
+  <!-- /c4:view -->
+
+Needs `npx` (Node) on PATH; runs a pinned likec4.
+"""
+
+import difflib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import click
+
+LIKEC4 = ["npx", "-y", "likec4@1.61.1"]
+KINDS = {"person": "Person", "system": "Software System", "container": "Container", "component": "Component"}
+EXTERNAL = "external"
+KEY = (
+    "_Key: each box gives a name, its [type: technology] and what it does. "
+    "Grey boxes are outside the system this model documents. "
+    "Arrows read in the direction shown; [brackets] on an arrow give its technology._"
+)
+REGION = re.compile(r"<!-- c4:view (\S+) -->\n.*?<!-- /c4:view -->\n?", re.DOTALL)
+
+
+def _text(value: object) -> str:
+    """LikeC4 exports rich text as {'txt': ...} or {'md': ...}, plain text as str."""
+    if isinstance(value, dict):
+        value = value.get("txt") or value.get("md") or ""
+    return str(value or "").strip()
+
+
+def _esc(value: str) -> str:
+    return value.replace('"', "#quot;").replace("`", "'")
+
+
+def _ref(element_id: str) -> str:
+    return re.sub(r"\W", "_", element_id)
+
+
+def _type(node: dict) -> str:
+    kind = KINDS.get(node["kind"], node["kind"])
+    tech = _text(node.get("technology"))
+    return f"[{kind}: {tech}]" if tech else f"[{kind}]"
+
+
+def mermaid(view: dict) -> str:
+    """One view from `likec4 export json` as a Mermaid flowchart in C4 dress."""
+    nodes = {n["id"]: n for n in view["nodes"]}
+    lines = [f"flowchart {view.get('autoLayout', {}).get('direction', 'TB')}"]
+    classes: dict[str, list[str]] = {}
+
+    def emit(node: dict, depth: int) -> None:
+        pad = "  " * depth
+        ref = _ref(node["id"])
+        title = _esc(_text(node["title"]))
+        children = [nodes[c] for c in node.get("children", []) if c in nodes]
+        if children:
+            lines.append(f'{pad}subgraph {ref}["{title} {_esc(_type(node))}"]')
+            for child in children:
+                emit(child, depth + 1)
+            lines.append(f"{pad}end")
+            return
+        label = f"**{title}**\n{_esc(_type(node))}"
+        if description := _esc(_text(node.get("description"))):
+            label += f"\n\n{description}"
+        open_, close = ("([", "])") if node["kind"] == "person" else ("[", "]")
+        lines.append(f'{pad}{ref}{open_}"`{label}`"{close}')
+        cls = EXTERNAL if EXTERNAL in (node.get("tags") or []) else node["kind"]
+        classes.setdefault(cls, []).append(ref)
+
+    for node in view["nodes"]:
+        if node.get("parent") not in nodes:
+            emit(node, 1)
+    for edge in view["edges"]:
+        label = _esc(_text(edge.get("label")))
+        if tech := _esc(_text(edge.get("technology"))):
+            label = f"{label} [{tech}]".strip()
+        arrow = f'-- "`{label}`" -->' if label else "-->"
+        lines.append(f"  {_ref(edge['source'])} {arrow} {_ref(edge['target'])}")
+    styles = {
+        "person": "fill:#08427b,stroke:#052e56,color:#fff",
+        "system": "fill:#1168bd,stroke:#0b4884,color:#fff",
+        "container": "fill:#438dd5,stroke:#2e6295,color:#fff",
+        "component": "fill:#85bbf0,stroke:#5d82a8,color:#000",
+        EXTERNAL: "fill:#999,stroke:#6b6b6b,color:#fff",
+    }
+    for cls, style in styles.items():
+        if refs := classes.get(cls):
+            lines.append(f"  classDef {cls} {style}")
+            lines.append(f"  class {','.join(refs)} {cls}")
+    return "\n".join(lines)
+
+
+def region(view: dict) -> str:
+    parts = [f"<!-- c4:view {view['id']} -->", f"## {_text(view.get('title')) or view['id']}", ""]
+    if description := _text(view.get("description")):
+        parts += [description, ""]
+    parts += ["```mermaid", mermaid(view), "```", "", KEY, "<!-- /c4:view -->", ""]
+    return "\n".join(parts)
+
+
+def merge(readme: str, views: list[dict]) -> str:
+    """README text with every view's region fresh: replaced in place, appended if new, dropped if orphaned."""
+    fresh = {v["id"]: region(v) for v in views}
+    seen: set[str] = set()
+
+    def swap(match: re.Match) -> str:
+        seen.add(match.group(1))
+        return fresh.get(match.group(1), "")
+
+    out = REGION.sub(swap, readme)
+    for view_id, text in fresh.items():
+        if view_id not in seen:
+            out = out.rstrip("\n") + "\n\n" + text if out.strip() else text
+    return out
+
+
+def views_of(dump: dict) -> list[dict]:
+    """Views written in the .c4 sources, in source order. LikeC4 adds an `index` view with no sourcePath; skip it."""
+    return [v for v in dump["views"].values() if v.get("sourcePath")]
+
+
+def _likec4(*args: str) -> None:
+    result = subprocess.run([*LIKEC4, *args], stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise click.ClickException(f"likec4 {args[0]} failed:\n{result.stdout}{result.stderr}".rstrip())
+
+
+def load_views(model_dir: Path) -> list[dict]:
+    _likec4("validate", str(model_dir))
+    with TemporaryDirectory() as tmp:
+        dump = Path(tmp) / "dump.json"
+        _likec4("export", "json", "-o", str(dump), str(model_dir))
+        return views_of(json.loads(dump.read_text(encoding="utf-8")))
+
+
+def _readme(model_dir: Path) -> tuple[Path, str]:
+    path = model_dir / "README.md"
+    return path, path.read_text(encoding="utf-8") if path.exists() else ""
+
+
+DIR = click.argument("model_dir", metavar="DIR", type=click.Path(exists=True, file_okay=False, path_type=Path))
+
+
+@click.group(help=__doc__)
+def cli() -> None:
+    pass
+
+
+@cli.command()
+@DIR
+def render(model_dir: Path) -> None:
+    """Validate the model and write every view's region into DIR/README.md."""
+    views = load_views(model_dir)
+    path, old = _readme(model_dir)
+    path.write_text(merge(old, views), encoding="utf-8")
+    click.echo(f"{path}: {len(views)} views ({', '.join(v['id'] for v in views)})")
+
+
+@cli.command()
+@DIR
+def check(model_dir: Path) -> None:
+    """Validate the model and exit 1 if DIR/README.md differs from a fresh render."""
+    views = load_views(model_dir)
+    path, old = _readme(model_dir)
+    new = merge(old, views)
+    if new != old:
+        sys.stdout.writelines(
+            difflib.unified_diff(old.splitlines(True), new.splitlines(True), f"{path} (committed)", f"{path} (fresh render)")
+        )
+        raise click.ClickException(f"{path} is stale; run: c4docs render {model_dir}")
+    click.echo(f"{path}: {len(views)} views match the model")
+
+
+if __name__ == "__main__":
+    cli()
