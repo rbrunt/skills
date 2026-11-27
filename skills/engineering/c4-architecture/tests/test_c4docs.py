@@ -39,6 +39,8 @@ def containers_view():
             node("tracker", "system", "Parcel Tracker", children=["tracker.api"]),
             node("tracker.api", "container", "Scan API", parent="tracker", technology="Python", description={"txt": 'Stores "scans"'}),
             node("sms", "system", "SMS Gateway", tags=["external"]),
+            node("store", "container", "Parcel store", technology="PostgreSQL", shape="storage"),
+            node("events", "container", "Scan events", technology="AWS SQS", shape="queue"),
         ],
         "edges": [
             {"source": "courier", "target": "tracker.api", "label": "Submits scans to", "technology": None},
@@ -61,6 +63,10 @@ class MermaidTest(unittest.TestCase):
     def test_person_is_a_stadium_without_technology(self):
         self.assertIn('courier(["`**Courier**\n[Person]`"])', self.out)
 
+    def test_data_stores_are_cylinders_and_other_shapes_stay_rectangles(self):
+        self.assertIn('store[("`**Parcel store**\n[Container: PostgreSQL]`")]', self.out)
+        self.assertIn('events["`**Scan events**\n[Container: AWS SQS]`"]', self.out)
+
     def test_parent_becomes_a_boundary_around_its_children(self):
         lines = self.out.splitlines()
         start = lines.index('  subgraph tracker["Parcel Tracker [Software System]"]')
@@ -75,7 +81,7 @@ class MermaidTest(unittest.TestCase):
     def test_external_tag_wins_over_kind_for_styling(self):
         self.assertIn("  class sms external", self.out)
         self.assertNotIn("classDef system", self.out)
-        self.assertIn("  class tracker_api container", self.out)
+        self.assertIn("  class tracker_api,store,events container", self.out)
 
 
 class MergeTest(unittest.TestCase):

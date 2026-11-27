@@ -6,8 +6,9 @@ Bring a model back in line with the code. Propose every edit with its evidence, 
 
 1. Run `git status` on the model directory. If it has uncommitted changes, summarise them and ask the user to commit first, so their edits and yours never mix.
 2. Run `c4docs check DIR`. If it fails, show the user why and agree whether to render before going on.
+3. If `spec.c4` differs from `<skill-dir>/templates/spec.c4`, copy the template over it, run `c4docs render DIR` and `c4docs check DIR`, and tell the user. This edit goes in the final changelog.
 
-**Gate:** the model directory is clean and `check` passes.
+**Gate:** the model directory had no uncommitted changes when you started, `check` passes, and `spec.c4` matches the template.
 
 ## 2. Find the drift
 

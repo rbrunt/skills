@@ -23,20 +23,21 @@ Apply every item below to every view. `c4docs` already supplies each diagram's t
 7. Each is the right abstraction per [format.md](format.md): flag a Docker image, a library, a team or a whole AWS account modelled as a container, and a separately deployed service modelled as a component.
 8. Each person and system outside the documented system is tagged `#external`, and nothing inside it is.
 9. No element sits unconnected.
+10. Each data store, queue, web front end and mobile app has its shape per [format.md](format.md).
 
 **Relationships**
-10. Each has a label.
-11. The label reads as a sentence in the arrow's direction. Flag bare `uses`, `calls`, `data` and any label that describes the reply.
-12. Each one that crosses a container boundary has a technology.
-13. One arrow carries one intent. Flag a two-way dependency drawn as a single arrow, and two arrows that say the same thing.
+11. Each has a label.
+12. The label reads as a sentence in the arrow's direction. Flag bare `uses`, `calls`, `data` and any label that describes the reply.
+13. Each one that crosses a container boundary has a technology.
+14. One arrow carries one intent. Flag a two-way dependency drawn as a single arrow, and two arrows that say the same thing.
 
 **Language**
-14. Every acronym and abbreviation is spelled out somewhere a reader of that view will see it.
-15. One thing has one name across all views and the README's prose.
+15. Every acronym and abbreviation is spelled out somewhere a reader of that view will see it.
+16. One thing has one name across all views and the README's prose.
 
 Mark each finding **major** (a reader would be misled or stuck) or **minor**, and give it a proposed fix: the exact new text where the fix is wording.
 
-**Gate:** you have applied all 15 items to every view.
+**Gate:** you have applied all 16 items to every view.
 
 ## 3. Report
 
@@ -50,6 +51,6 @@ Ask one multi-select question per view, each major finding as an option with its
 
 ## 5. Write
 
-1. Apply the accepted fixes to the `.c4` files.
-2. Run `c4docs render DIR`, then `c4docs check DIR`.
-3. Send a short changelog and the README path.
+2. Apply the accepted fixes to the `.c4` files.
+3. Run `c4docs render DIR`, then `c4docs check DIR`.
+4. Send a short changelog and the README path.
