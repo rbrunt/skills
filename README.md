@@ -12,6 +12,7 @@ npx skills@latest add rbrunt/skills
 
 ### Engineering
 
+- [c4-architecture](skills/engineering/c4-architecture/SKILL.md) — Build, update, or critique C4 model architecture docs for an existing system, as LikeC4 with generated Mermaid.
 - [code-flow-visualisation](skills/engineering/code-flow-visualisation/SKILL.md) — Explain code flow with a small call tree or sequence diagram when it helps more than prose.
 - [gh-stack](skills/engineering/gh-stack/SKILL.md) — Create and manage dependent pull requests with `gh stack`.
 - [git-commit](skills/engineering/git-commit/SKILL.md) — Write commit messages in my preferred style, grounded in the discussion behind the change.
