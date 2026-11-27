@@ -30,4 +30,5 @@ The model describes the system **as built**. A proposed design has no code to ho
 - **Use the project's words.** Take element names from the code, the deploy config and the team's glossary.
 - **Document, don't redesign.** Findings are about whether the docs are accurate and readable. Leave the architecture's merits to the user.
 - **The `.c4` files are the only source.** Change diagrams by editing the model, then run `c4docs render DIR`. After every batch of edits, `render` must succeed and `c4docs check DIR` must pass before you report back.
+- **Offer the viewer.** `c4docs view DIR` serves the model in LikeC4's interactive browser viewer and reloads as the `.c4` files change. Whenever the user is about to review a model that exists on disk, offer it. On a yes, start it in the background, send the URL it prints, and stop it when the session's work on the model ends. It is a way to explore; the README stays the published form.
 - **Batch questions.** Ask several related decisions in one multi-select question.
