@@ -1,6 +1,10 @@
 // The C4 vocabulary. Copied from the c4-architecture skill; keep as is.
 specification {
-  element person
+  element person {
+    style {
+      shape person
+    }
+  }
   element system
   element container
   element component
