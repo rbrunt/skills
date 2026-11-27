@@ -70,6 +70,11 @@ model {
 
 // views.c4
 views {
+  // Greys external elements in the LikeC4 viewer, as c4docs does in the README.
+  style element.tag = #external {
+    color muted
+  }
+
   view context {
     title 'System context'
     description 'Who and what Parcel Tracker talks to'
@@ -93,6 +98,8 @@ views {
 - `include tracker, * -> tracker, tracker -> *` shows the system and its direct neighbours. Add by name anyone who matters but reaches the system through another one, as `customer` does above.
 
 ## Views
+
+`views.c4` opens with the `style element.tag = #external` rule shown above, which applies to every view in the file.
 
 The standard set is `context`, `containers`, and `components-<container-id>` per requested container. Any other view exists because the user asked for it.
 
