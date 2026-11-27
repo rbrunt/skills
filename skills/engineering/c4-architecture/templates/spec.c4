@@ -1,0 +1,10 @@
+// The C4 vocabulary. Copied from the c4-architecture skill; keep as is.
+specification {
+  element person
+  element system
+  element container
+  element component
+
+  // On every person and software system outside the system this model documents.
+  tag external
+}
