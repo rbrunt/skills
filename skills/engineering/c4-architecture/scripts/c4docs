@@ -41,9 +41,12 @@ import click
 LIKEC4 = ["npx", "-y", "likec4@1.61.1"]
 KINDS = {"person": "Person", "system": "Software System", "container": "Container", "component": "Component"}
 EXTERNAL = "external"
+# LikeC4 shape -> Mermaid node brackets. Shapes classic Mermaid cannot draw stay rectangles.
+STORE = ("[(", ")]")
+BRACKETS = {"person": ("([", "])"), "storage": STORE, "cylinder": STORE, "bucket": STORE}
 KEY = (
     "_Key: each box gives a name, its [type: technology] and what it does. "
-    "Grey boxes are outside the system this model documents. "
+    "Cylinders are data stores. Grey boxes are outside the system this model documents. "
     "Arrows read in the direction shown; [brackets] on an arrow give its technology._"
 )
 REGION = re.compile(r"<!-- c4:view (\S+) -->\n.*?<!-- /c4:view -->\n?", re.DOTALL)
@@ -90,7 +93,7 @@ def mermaid(view: dict) -> str:
         label = f"**{title}**\n{_esc(_type(node))}"
         if description := _esc(_text(node.get("description"))):
             label += f"\n\n{description}"
-        open_, close = ("([", "])") if node["kind"] == "person" else ("[", "]")
+        open_, close = BRACKETS.get("person" if node["kind"] == "person" else node.get("shape"), ("[", "]"))
         lines.append(f'{pad}{ref}{open_}"`{label}`"{close}')
         cls = EXTERNAL if EXTERNAL in (node.get("tags") or []) else node["kind"]
         classes.setdefault(cls, []).append(ref)
