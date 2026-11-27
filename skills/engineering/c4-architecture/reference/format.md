@@ -19,6 +19,18 @@ A model is one directory (default `docs/architecture/`) documenting one software
 
 Tag every person and software system outside the documented system `#external`; `c4docs` draws those grey.
 
+A database, bucket or queue is a container like any other; what marks it is its **shape**. Give these containers a `style { shape ... }`:
+
+| The container is | Shape |
+|---|---|
+| a database or other data store | `storage` |
+| an object-storage bucket | `bucket` |
+| a queue, topic or stream | `queue` |
+| a web front end | `browser` |
+| a mobile app | `mobile` |
+
+The viewer draws each shape. The README draws `storage` and `bucket` as cylinders and the rest as boxes.
+
 ## Writing the model
 
 ```
@@ -40,13 +52,21 @@ model {
     description 'Records where each parcel is and tells its customer'
 
     api = container 'Scan API' {
-      description 'Receives scans and stores each parcel\'s location'
+      description 'Receives scans from couriers\' handhelds'
       technology 'Python, AWS Lambda'
     }
     worker = container 'Notification worker' {
       description 'Decides which scans a customer hears about'
       technology 'Python, AWS Batch'
     }
+    store = container 'Parcel store' {
+      description 'Holds every scan and each parcel\'s current location'
+      technology 'PostgreSQL'
+      style {
+        shape storage
+      }
+    }
+    api -> store 'Records each scan in'
     api -> worker 'Queues each scan for'
   }
   courier -> tracker.api 'Submits scans to' {
