@@ -14,11 +14,15 @@ Bring a model back in line with the code. Propose every edit with its evidence, 
 **Drift** is any place the model and the code disagree. The request sets how wide you look:
 
 - **A named change** (a PR, a commit range, a description of what was built): read its full diff. For each changed file, decide whether it adds, removes or alters a person, system, container, component or relationship in the model.
-- **Resync** (no change named, or the user asks whether the model is still right): check both directions.
-  - Model to code: find current evidence for every element and every relationship in the model.
-  - Code to model: repeat the edge and deployable-unit reads from build stages 2 and 3, and look for each result in the model.
+- **Resync** (no change named, or the user asks whether the model is still right): work from two sources.
+  1. **History.** The model's last commit marks when it was last known to be right: `git log -1 --format='%H %cI' -- DIR`. List what changed in the code since, with `git log --stat <hash>..HEAD` in the model's repo and `git log --stat --since=<date>` in each other repo the system spans. Read the diffs that touch entry points, clients of other systems, infrastructure-as-code, deploy config or CI.
+  2. **Code.** History misses drift that was already there at the last commit, so also check both directions against the code as it stands:
+     - Model to code: find current evidence for every element and every relationship in the model.
+     - Code to model: repeat the edge and deployable-unit reads from build stages 2 and 3, and look for each result in the model.
 
 Component-level drift counts only for containers that already have a `components/` file.
+
+**Fan out with subagents** when the reading is wide: one per repo, per container, or per slice of history. Give each the model's relevant elements and relationships and ask for drift with `path:line` evidence. Their reports are leads: open the evidence for every edit you go on to propose.
 
 **Gate:** for a named change, every changed file is matched to an edit or noted as needing none. For a resync, every model element and relationship has evidence or is marked unsupported, and every deployable unit in the code is found in the model or marked missing.
 
